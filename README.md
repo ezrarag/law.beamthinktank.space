@@ -87,14 +87,29 @@ npm start
 The following environment variables will be needed for full functionality:
 
 ```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Stripe
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
+# Firebase (copy .env.example to .env.local)
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=beam-law-platform.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=beam-law-platform
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=beam-law-platform.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
+
+Enable Email/Password authentication and Firestore in the Firebase console. Give authorized users a boolean `beam_admin` or `partner_admin` custom claim, then deploy rules, indexes, and the participant write-through trigger:
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use beam-law-platform
+npm --prefix functions install
+npm --prefix functions run build
+firebase deploy --only firestore,functions
+```
+
+After the first admin login, open **Practice Areas** and choose **Save & initialize** to create the fixed track and chapter records.
+
+The full collection contract is documented in `docs/DATA_MODEL.md`.
 
 ## Future Enhancements
 

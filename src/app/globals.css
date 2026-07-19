@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+table th, table td { padding: 1rem; }
+
+form input, form select, form textarea {
+  color: inherit;
+}
+
+.bg-\[\#080b12\] form input,
+.bg-\[\#080b12\] form select,
+.bg-\[\#080b12\] form textarea {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: .5rem;
+  background: #080b12;
+  padding: .7rem .85rem;
+}

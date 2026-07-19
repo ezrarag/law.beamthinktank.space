@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db, firebaseConfigured } from '@/lib/firebase';
+import { CHAPTERS, trackForIssue } from '@/lib/domain';
 import { 
   Scale, 
   Shield, 
@@ -23,24 +27,29 @@ export default function Home() {
     legalIssue: '',
     message: ''
   });
+  const [submitState, setSubmitState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  const cities = [
-    'New York, NY',
-    'Los Angeles, CA',
-    'Chicago, IL',
-    'Houston, TX',
-    'Phoenix, AZ',
-    'Philadelphia, PA',
-    'San Antonio, TX',
-    'San Diego, CA',
-    'Dallas, TX',
-    'San Jose, CA'
-  ];
+  const cities = CHAPTERS.map((chapter) => chapter.city);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission - integrate with Supabase later
-    console.log('Contact form submitted:', contactForm);
+    if (!firebaseConfigured) return setSubmitState('error');
+    setSubmitState('saving');
+    try {
+      const chapter = CHAPTERS.find((item) => item.city === contactForm.city);
+      await addDoc(collection(db, 'cases'), {
+        clientName: contactForm.name.trim(), email: contactForm.email.trim().toLowerCase(), phone: contactForm.phone.trim(),
+        city: contactForm.city, chapterId: chapter?.id ?? null, issueType: contactForm.legalIssue,
+        message: contactForm.message.trim(), trackId: trackForIssue(contactForm.legalIssue), phase: 'New',
+        assignedParticipantId: null, linkedOrgId: chapter?.id ?? null, source: 'public_intake',
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+      setContactForm({ name: '', email: '', phone: '', city: '', legalIssue: '', message: '' });
+      setSubmitState('saved');
+    } catch (error) {
+      console.error(error);
+      setSubmitState('error');
+    }
   };
 
   const handleDonation = () => {
@@ -62,6 +71,7 @@ export default function Home() {
               <a href="#services" className="text-gray-700 hover:text-blue-600 transition-colors">Services</a>
               <a href="#donate" className="text-gray-700 hover:text-blue-600 transition-colors">Donate</a>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors">Contact</a>
+              <Link href="/join" className="text-gray-700 hover:text-blue-600 transition-colors">Volunteer</Link>
             </div>
           </div>
         </div>
@@ -285,13 +295,15 @@ export default function Home() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                  <input
-                    type="text"
+                  <select
                     value={contactForm.city}
                     onChange={(e) => setContactForm({...contactForm, city: e.target.value})}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
-                  />
+                  >
+                    <option value="">Select your city</option>
+                    {CHAPTERS.map((chapter) => <option key={chapter.id} value={chapter.city}>{chapter.city}</option>)}
+                  </select>
                 </div>
               </div>
               
@@ -328,10 +340,13 @@ export default function Home() {
               
               <button
                 type="submit"
+                disabled={submitState === 'saving'}
                 className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-blue-700 transition-colors"
               >
-                Submit Request
+                {submitState === 'saving' ? 'Submitting…' : 'Submit Request'}
               </button>
+              {submitState === 'saved' && <p className="text-center text-green-700">Your request was received. Our intake team will review it.</p>}
+              {submitState === 'error' && <p className="text-center text-red-700">We could not submit your request. Please check the site configuration and try again.</p>}
             </form>
           </div>
         </div>
@@ -358,6 +373,7 @@ export default function Home() {
                 <li><a href="#services" className="hover:text-white transition-colors">Services</a></li>
                 <li><a href="#donate" className="hover:text-white transition-colors">Donate</a></li>
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
+                <li><Link href="/join" className="hover:text-white transition-colors">Volunteer / Join the Team</Link></li>
               </ul>
             </div>
             

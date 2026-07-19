@@ -1,0 +1,16 @@
+{
+  "indexes": [
+    { "collectionGroup": "participants", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "city", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" }
+    ]},
+    { "collectionGroup": "cases", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "phase", "order": "ASCENDING" },
+      { "fieldPath": "trackId", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" }
+    ]}
+  ],
+  "fieldOverrides": []
+}
+

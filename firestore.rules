@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        (request.auth.token.beam_admin == true || request.auth.token.partner_admin == true);
+    }
+    function onlyKeys(keys) { return request.resource.data.keys().hasOnly(keys); }
+
+    match /tracks/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /chapters/{id} { allow read: if true; allow write: if isAdmin(); }
+
+    match /participants/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if onlyKeys(['name','email','role','status','headline','notes','city','chapterId','source','createdAt','updatedAt'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.source == 'public_registration';
+    }
+    match /cases/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if onlyKeys(['clientName','email','phone','city','chapterId','issueType','message','trackId','phase','assignedParticipantId','linkedOrgId','source','createdAt','updatedAt'])
+        && request.resource.data.phase == 'New'
+        && request.resource.data.assignedParticipantId == null
+        && request.resource.data.source == 'public_intake';
+    }
+    match /participantProfiles/{id} { allow read, write: if isAdmin(); }
+    match /organizationMemberships/{id} { allow read, write: if isAdmin(); }
+    match /cohortMemberships/{id} { allow read, write: if isAdmin(); }
+  }
+}
+
