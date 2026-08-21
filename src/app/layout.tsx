@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { AuthBootstrapper } from "@/components/AuthBootstrapper";
+import { AppLayoutShell } from "@/components/AppLayoutShell";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BEAM Law & Justice League",
-  description: "Empowering communities through legal aid, IP support, and governance reform. Join the fight for justice and equality.",
-  keywords: "legal aid, justice, law, community, IP support, governance reform, BEAM",
+  title: "BEAM Law & Legal Operations Hub",
+  description: "Shared-state legal task aggregator, multi-ngo regulatory compliance hub, and earn-while-learning practicum workspace under licensed attorney supervision.",
+  keywords: "legal aid, justice, law, community, IP support, governance reform, BEAM, legal operations, practicum",
 };
 
 export default function RootLayout({
@@ -16,8 +18,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`${inter.className} min-h-screen bg-[#070912] text-slate-100 antialiased`}>
+        <AuthBootstrapper>
+          <AppLayoutShell>{children}</AppLayoutShell>
+        </AuthBootstrapper>
+      </body>
     </html>
   );
 }
