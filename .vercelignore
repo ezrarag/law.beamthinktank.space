@@ -57,5 +57,8 @@ jspm_packages/
 # Output of 'npm pack'
 *.tgz
 
+# Firebase Functions
+functions/
+
 # Yarn Integrity file
 .yarn-integrity
