@@ -14,6 +14,14 @@ export type RoleTier =
 
 export type CredentialLevel = 1 | 2 | 3 | 4 | 5;
 
+export type OriginatingNgo = "transportation" | "grounds" | "forge" | "orchestra" | "readyaimgo" | "finance";
+
+export type MatterCategory = "regulatory" | "zoning-realestate" | "ip-rights" | "client-contract" | "compliance";
+
+export type MatterPriority = "standard" | "high" | "urgent";
+
+export type MatterStatus = "intake" | "claimed" | "in-review" | "faculty-review" | "approved" | "archived";
+
 export interface PortfolioItem {
   matterId: string;
   originatingNgo: string;
@@ -42,21 +50,21 @@ export interface LegalParticipantProfile {
 
 export interface LegalMatter {
   id: string;
+  originatingNgo: OriginatingNgo;
   title: string;
-  originatingNgo:
-    | "transportation.beamthinktank.space"
-    | "grounds.beamthinktank.space"
-    | "forge.beamthinktank.space"
-    | "orchestra.beamthinktank.space"
-    | "clients.readyaimgo.biz";
-  practiceArea: LegalPracticeArea;
-  status: "intake" | "assigned" | "memo-drafting" | "redline-review" | "attorney-approved" | "archived";
-  urgency: "low" | "medium" | "high" | "critical";
-  assignedParticipantUids: string[];
-  supervisingAttorneyUid?: string;
-  description: string;
-  clientName?: string;
-  clientEmail?: string;
+  category: MatterCategory;
+  summary: string;
+  priority: MatterPriority;
+  status: MatterStatus;
+  sourceDocumentUrl?: string; // Firebase Storage link or live text draft
+  assignedParticipantId?: string;
+  supervisingAttorneyId?: string;
+  crossReferences?: {
+    contractId?: string;       // Linked to shared contracts/{contractId}
+    propertyParcelId?: string; // Linked to Grounds parcel/CLT acquisition record
+    vehicleCohortId?: string;  // Linked to Transportation cohort fleet
+    ensembleProjectId?: string;// Linked to Orchestra BDSO project hub
+  };
   createdAt: unknown;
   updatedAt: unknown;
 }
@@ -86,6 +94,7 @@ export const CREDENTIAL_LEVEL_DESCRIPTIONS: Record<CredentialLevel, { title: str
 
 export const LAW_PRACTICE_AREAS: {
   slug: LegalPracticeArea;
+  category: MatterCategory;
   label: string;
   tagline: string;
   description: string;
@@ -94,47 +103,52 @@ export const LAW_PRACTICE_AREAS: {
 }[] = [
   {
     slug: "transportation-regulatory",
+    category: "regulatory",
     label: "Transportation & Regulatory Compliance",
     tagline: "FAA Leases, DOT Fleet Compliance & Import Regulations",
     description:
       "Operational legal oversight for autonomous fleet management, FAA airspace leasing, DOT transportation compliance, and international logistics operations.",
-    originatingDomains: ["transportation.beamthinktank.space"],
+    originatingDomains: ["transportation"],
     colorAccent: "#3B82F6",
   },
   {
     slug: "municipal-zoning-clt",
+    category: "zoning-realestate",
     label: "Municipal Zoning & CLT Land Trusts",
     tagline: "Community Land Trusts, 800 W. Wells Variances & Adaptive Reuse",
     description:
       "Property law, community land trust structuring, municipal zoning variances (such as 800 W. Wells), and affordable housing preservation models.",
-    originatingDomains: ["grounds.beamthinktank.space"],
+    originatingDomains: ["grounds"],
     colorAccent: "#10B981",
   },
   {
     slug: "ip-academic-licensing",
+    category: "ip-rights",
     label: "IP, AI Consent & Academic Licensing",
     tagline: "Studio AI Models, Dataset Consent & Artist IP Protection",
     description:
       "Intellectual property management for machine learning models, ethically sourced dataset licensing agreements, and artist copyright governance.",
-    originatingDomains: ["forge.beamthinktank.space", "orchestra.beamthinktank.space"],
+    originatingDomains: ["forge", "orchestra"],
     colorAccent: "#8B5CF6",
   },
   {
     slug: "contract-client-services",
+    category: "client-contract",
     label: "Client Services & Stipend Operations",
     tagline: "ReadyAimGo Client Agreements & Multi-Currency Stipends",
     description:
       "Enterprise software agreements, client service level agreements (SLAs), participant stipend distribution, and multi-currency contract caps.",
-    originatingDomains: ["clients.readyaimgo.biz"],
+    originatingDomains: ["readyaimgo", "finance"],
     colorAccent: "#F59E0B",
   },
   {
     slug: "nonprofit-governance",
+    category: "compliance",
     label: "501(c)(3) Governance & Fiscal Sponsorship",
     tagline: "Ecosystem Bylaws, Board Compliance & Fiscal Sponsorship",
     description:
       "Ecosystem-wide non-profit governance, 501(c)(3) compliance auditing, fiscal sponsorship arrangements, and inter-NGO MOU agreements.",
-    originatingDomains: ["law.beamthinktank.space"],
+    originatingDomains: ["law"],
     colorAccent: "#EC4899",
   },
 ];

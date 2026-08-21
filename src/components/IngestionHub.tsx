@@ -4,7 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, addDoc, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db, firebaseConfigured } from '@/lib/firebase';
 import { useLawAuth } from '@/components/AuthBootstrapper';
-import { LAW_PRACTICE_AREAS, type LegalMatter, type LegalPracticeArea } from '@/lib/domain';
+import {
+  type LegalMatter,
+  type OriginatingNgo,
+  type MatterCategory,
+  type MatterPriority,
+} from '@/lib/domain';
 import {
   Scale,
   Plus,
@@ -14,68 +19,86 @@ import {
   ExternalLink,
   UserPlus,
   Search,
+  FileText,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 const INITIAL_DEMO_MATTERS: LegalMatter[] = [
   {
     id: 'matter-trans-01',
+    originatingNgo: 'transportation',
     title: 'FAA Airspace Lease & Autonomous Drone Fleet Compliance Review',
-    originatingNgo: 'transportation.beamthinktank.space',
-    practiceArea: 'transportation-regulatory',
+    category: 'regulatory',
+    summary: 'Review 14 CFR Part 107 flight waivers, ground operations safety manual, and municipal airspace lease agreement for autonomous cargo drone flight corridors.',
+    priority: 'high',
     status: 'intake',
-    urgency: 'high',
-    assignedParticipantUids: [],
-    description: 'Review 14 CFR Part 107 flight waivers, ground operations safety manual, and municipal airspace lease agreement for autonomous cargo drone flight corridors.',
+    sourceDocumentUrl: 'https://storage.googleapis.com/beam-law-docs/faa-drone-lease-2026.pdf',
+    crossReferences: {
+      vehicleCohortId: 'cohort-drone-mke-01',
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'matter-grounds-02',
+    originatingNgo: 'grounds',
     title: '800 W. Wells CLT Zoning Variance & Adaptive Reuse Filing',
-    originatingNgo: 'grounds.beamthinktank.space',
-    practiceArea: 'municipal-zoning-clt',
-    status: 'assigned',
-    urgency: 'medium',
-    assignedParticipantUids: ['demo-user-1'],
-    supervisingAttorneyUid: 'atty-1',
-    description: 'Prepare zoning board variance petition and Community Land Trust ground lease covenant modifications for historic commercial building conversion.',
+    category: 'zoning-realestate',
+    summary: 'Prepare zoning board variance petition and Community Land Trust ground lease covenant modifications for historic commercial building conversion.',
+    priority: 'standard',
+    status: 'claimed',
+    assignedParticipantId: 'demo-user-1',
+    supervisingAttorneyId: 'atty-1',
+    sourceDocumentUrl: 'https://storage.googleapis.com/beam-law-docs/800-wells-clt-variance.pdf',
+    crossReferences: {
+      propertyParcelId: 'parcel-mke-800wells',
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'matter-forge-03',
+    originatingNgo: 'forge',
     title: 'AI Training Dataset Consent & Open-Source Model Licensing',
-    originatingNgo: 'forge.beamthinktank.space',
-    practiceArea: 'ip-academic-licensing',
-    status: 'memo-drafting',
-    urgency: 'high',
-    assignedParticipantUids: [],
-    description: 'Audit training data provenance, construct artist opt-out consent mechanisms, and structure Apache 2.0 dual-licensing agreements for generative models.',
+    category: 'ip-rights',
+    summary: 'Audit training data provenance, construct artist opt-out consent mechanisms, and structure Apache 2.0 dual-licensing agreements for generative models.',
+    priority: 'high',
+    status: 'in-review',
+    sourceDocumentUrl: 'https://storage.googleapis.com/beam-law-docs/ai-dataset-license-agreement.docx',
+    crossReferences: {
+      ensembleProjectId: 'project-forge-ai-09',
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'matter-rag-04',
+    originatingNgo: 'readyaimgo',
     title: 'ReadyAimGo Client SLA & Multi-Currency Stipend Contract Caps',
-    originatingNgo: 'clients.readyaimgo.biz',
-    practiceArea: 'contract-client-services',
-    status: 'redline-review',
-    urgency: 'medium',
-    assignedParticipantUids: [],
-    description: 'Draft client service level agreement addendum regarding cross-border currency conversion, stipend disbursement schedules, and liability caps.',
+    category: 'client-contract',
+    summary: 'Draft client service level agreement addendum regarding cross-border currency conversion, stipend disbursement schedules, and liability caps.',
+    priority: 'standard',
+    status: 'faculty-review',
+    sourceDocumentUrl: 'https://storage.googleapis.com/beam-law-docs/rag-client-sla-2026.pdf',
+    crossReferences: {
+      contractId: 'contract-rag-client-771',
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'matter-orch-05',
+    originatingNgo: 'orchestra',
     title: '501(c)(3) Multi-NGO Fiscal Sponsorship & Inter-Domain MOU',
-    originatingNgo: 'orchestra.beamthinktank.space',
-    practiceArea: 'nonprofit-governance',
-    status: 'attorney-approved',
-    urgency: 'critical',
-    assignedParticipantUids: [],
-    supervisingAttorneyUid: 'atty-2',
-    description: 'Ecosystem-wide Memorandum of Understanding for shared technology infrastructure, intellectual property co-ownership, and tax compliance.',
+    category: 'compliance',
+    summary: 'Ecosystem-wide Memorandum of Understanding for shared technology infrastructure, intellectual property co-ownership, and tax compliance.',
+    priority: 'urgent',
+    status: 'approved',
+    supervisingAttorneyId: 'atty-2',
+    sourceDocumentUrl: 'https://storage.googleapis.com/beam-law-docs/beam-ecosystem-mou.pdf',
+    crossReferences: {
+      ensembleProjectId: 'project-bdso-ecosystem-01',
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -84,7 +107,7 @@ const INITIAL_DEMO_MATTERS: LegalMatter[] = [
 export function IngestionHub() {
   const { user, refreshProfile } = useLawAuth();
   const [matters, setMatters] = useState<LegalMatter[]>(INITIAL_DEMO_MATTERS);
-  const [selectedArea, setSelectedArea] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedNgo, setSelectedNgo] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,16 +116,26 @@ export function IngestionHub() {
 
   const [newMatter, setNewMatter] = useState<{
     title: string;
-    originatingNgo: LegalMatter['originatingNgo'];
-    practiceArea: LegalPracticeArea;
-    urgency: 'low' | 'medium' | 'high' | 'critical';
-    description: string;
+    originatingNgo: OriginatingNgo;
+    category: MatterCategory;
+    priority: MatterPriority;
+    summary: string;
+    sourceDocumentUrl: string;
+    contractId: string;
+    propertyParcelId: string;
+    vehicleCohortId: string;
+    ensembleProjectId: string;
   }>({
     title: '',
-    originatingNgo: 'transportation.beamthinktank.space',
-    practiceArea: 'transportation-regulatory',
-    urgency: 'medium',
-    description: '',
+    originatingNgo: 'transportation',
+    category: 'regulatory',
+    priority: 'standard',
+    summary: '',
+    sourceDocumentUrl: '',
+    contractId: '',
+    propertyParcelId: '',
+    vehicleCohortId: '',
+    ensembleProjectId: '',
   });
 
   useEffect(() => {
@@ -128,10 +161,22 @@ export function IngestionHub() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const crossRefs = {
+        ...(newMatter.contractId && { contractId: newMatter.contractId }),
+        ...(newMatter.propertyParcelId && { propertyParcelId: newMatter.propertyParcelId }),
+        ...(newMatter.vehicleCohortId && { vehicleCohortId: newMatter.vehicleCohortId }),
+        ...(newMatter.ensembleProjectId && { ensembleProjectId: newMatter.ensembleProjectId }),
+      };
+
       const payload: Omit<LegalMatter, 'id'> = {
-        ...newMatter,
+        title: newMatter.title,
+        originatingNgo: newMatter.originatingNgo,
+        category: newMatter.category,
+        priority: newMatter.priority,
+        summary: newMatter.summary,
         status: 'intake',
-        assignedParticipantUids: [],
+        sourceDocumentUrl: newMatter.sourceDocumentUrl || undefined,
+        crossReferences: Object.keys(crossRefs).length > 0 ? crossRefs : undefined,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -161,10 +206,15 @@ export function IngestionHub() {
 
       setNewMatter({
         title: '',
-        originatingNgo: 'transportation.beamthinktank.space',
-        practiceArea: 'transportation-regulatory',
-        urgency: 'medium',
-        description: '',
+        originatingNgo: 'transportation',
+        category: 'regulatory',
+        priority: 'standard',
+        summary: '',
+        sourceDocumentUrl: '',
+        contractId: '',
+        propertyParcelId: '',
+        vehicleCohortId: '',
+        ensembleProjectId: '',
       });
       setIsModalOpen(false);
     } catch (err) {
@@ -183,8 +233,8 @@ export function IngestionHub() {
     try {
       if (firebaseConfigured) {
         await updateDoc(doc(db, 'legalMatters', matterId), {
-          assignedParticipantUids: arrayUnion(user.uid),
-          status: 'assigned',
+          assignedParticipantId: user.uid,
+          status: 'claimed',
           updatedAt: serverTimestamp(),
         });
         await updateDoc(doc(db, 'participantProfiles', user.uid), {
@@ -199,8 +249,8 @@ export function IngestionHub() {
           m.id === matterId
             ? {
                 ...m,
-                status: 'assigned',
-                assignedParticipantUids: Array.from(new Set([...m.assignedParticipantUids, user.uid])),
+                status: 'claimed',
+                assignedParticipantId: user.uid,
               }
             : m
         )
@@ -213,14 +263,15 @@ export function IngestionHub() {
   };
 
   const filteredMatters = matters.filter((matter) => {
-    if (selectedArea !== 'all' && matter.practiceArea !== selectedArea) return false;
+    if (selectedCategory !== 'all' && matter.category !== selectedCategory) return false;
     if (selectedNgo !== 'all' && matter.originatingNgo !== selectedNgo) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
         matter.title.toLowerCase().includes(q) ||
-        matter.description.toLowerCase().includes(q) ||
-        matter.originatingNgo.toLowerCase().includes(q)
+        matter.summary.toLowerCase().includes(q) ||
+        matter.originatingNgo.toLowerCase().includes(q) ||
+        matter.category.toLowerCase().includes(q)
       );
     }
     return true;
@@ -239,7 +290,7 @@ export function IngestionHub() {
             Ingested Task Operations
           </h1>
           <p className="mt-2 text-slate-400 text-sm max-w-2xl leading-relaxed">
-            Real-world legal, regulatory compliance, and contract tasks originating from sister domains: transportation, grounds, forge, orchestra, and ReadyAimGo.
+            Real-world legal, regulatory compliance, and contract tasks originating from sister domains: transportation, grounds, forge, orchestra, readyaimgo, and finance.
           </p>
         </div>
 
@@ -266,19 +317,19 @@ export function IngestionHub() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
             <Filter className="h-3.5 w-3.5" />
-            Practice Area:
+            Category:
           </div>
           <select
-            value={selectedArea}
-            onChange={(e) => setSelectedArea(e.target.value)}
-            className="rounded-md border border-white/10 bg-[#0c101c] px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="rounded-md border border-white/10 bg-[#0c101c] px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 capitalize"
           >
-            <option value="all">All Practice Areas (5)</option>
-            {LAW_PRACTICE_AREAS.map((area) => (
-              <option key={area.slug} value={area.slug}>
-                {area.label}
-              </option>
-            ))}
+            <option value="all">All Categories</option>
+            <option value="regulatory">Regulatory</option>
+            <option value="zoning-realestate">Zoning &amp; Real Estate</option>
+            <option value="ip-rights">IP Rights</option>
+            <option value="client-contract">Client Contract</option>
+            <option value="compliance">Compliance</option>
           </select>
 
           <div className="flex items-center gap-2 text-xs font-medium text-slate-400 ml-0 sm:ml-2">
@@ -287,14 +338,15 @@ export function IngestionHub() {
           <select
             value={selectedNgo}
             onChange={(e) => setSelectedNgo(e.target.value)}
-            className="rounded-md border border-white/10 bg-[#0c101c] px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            className="rounded-md border border-white/10 bg-[#0c101c] px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 capitalize"
           >
             <option value="all">All Sister Domains</option>
-            <option value="transportation.beamthinktank.space">transportation</option>
-            <option value="grounds.beamthinktank.space">grounds</option>
-            <option value="forge.beamthinktank.space">forge</option>
-            <option value="orchestra.beamthinktank.space">orchestra</option>
-            <option value="clients.readyaimgo.biz">clients.readyaimgo.biz</option>
+            <option value="transportation">transportation</option>
+            <option value="grounds">grounds</option>
+            <option value="forge">forge</option>
+            <option value="orchestra">orchestra</option>
+            <option value="readyaimgo">readyaimgo</option>
+            <option value="finance">finance</option>
           </select>
         </div>
 
@@ -313,7 +365,7 @@ export function IngestionHub() {
       {/* Task Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredMatters.map((matter) => {
-          const isClaimedByUser = user ? matter.assignedParticipantUids.includes(user.uid) : false;
+          const isClaimedByUser = user ? matter.assignedParticipantId === user.uid : false;
 
           return (
             <div
@@ -322,27 +374,68 @@ export function IngestionHub() {
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-950/60 border border-blue-500/30 px-2.5 py-1 text-[0.68rem] font-semibold text-blue-300">
-                    <ExternalLink className="h-3 w-3" />
-                    {matter.originatingNgo}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-950/60 border border-blue-500/30 px-2.5 py-1 text-[0.68rem] font-semibold text-blue-300 capitalize">
+                      <ExternalLink className="h-3 w-3" />
+                      {matter.originatingNgo}
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-purple-950/60 border border-purple-500/30 px-2 py-0.5 text-[0.65rem] font-medium text-purple-300 capitalize">
+                      {matter.category}
+                    </span>
+                  </div>
                   <span
                     className={`text-[0.68rem] font-semibold uppercase px-2 py-0.5 rounded border ${
-                      matter.urgency === 'critical'
+                      matter.priority === 'urgent'
                         ? 'bg-red-950/60 border-red-500/40 text-red-400'
-                        : matter.urgency === 'high'
+                        : matter.priority === 'high'
                         ? 'bg-amber-950/60 border-amber-500/40 text-amber-300'
                         : 'bg-slate-800 border-slate-700 text-slate-300'
                     }`}
                   >
-                    {matter.urgency} priority
+                    {matter.priority} priority
                   </span>
                 </div>
 
                 <h3 className="text-lg font-bold text-white leading-snug">{matter.title}</h3>
                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                  {matter.description}
+                  {matter.summary}
                 </p>
+
+                {/* Cross References & Document Links */}
+                {(matter.sourceDocumentUrl || matter.crossReferences) && (
+                  <div className="pt-2 flex flex-wrap gap-2 text-[0.68rem]">
+                    {matter.sourceDocumentUrl && (
+                      <a
+                        href={matter.sourceDocumentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-blue-400 hover:underline"
+                      >
+                        <FileText className="h-3 w-3" /> Source Document
+                      </a>
+                    )}
+                    {matter.crossReferences?.contractId && (
+                      <span className="inline-flex items-center gap-1 text-slate-400 font-mono">
+                        <LinkIcon className="h-3 w-3 text-emerald-400" /> contract:{matter.crossReferences.contractId}
+                      </span>
+                    )}
+                    {matter.crossReferences?.propertyParcelId && (
+                      <span className="inline-flex items-center gap-1 text-slate-400 font-mono">
+                        <LinkIcon className="h-3 w-3 text-emerald-400" /> parcel:{matter.crossReferences.propertyParcelId}
+                      </span>
+                    )}
+                    {matter.crossReferences?.vehicleCohortId && (
+                      <span className="inline-flex items-center gap-1 text-slate-400 font-mono">
+                        <LinkIcon className="h-3 w-3 text-emerald-400" /> vehicle:{matter.crossReferences.vehicleCohortId}
+                      </span>
+                    )}
+                    {matter.crossReferences?.ensembleProjectId && (
+                      <span className="inline-flex items-center gap-1 text-slate-400 font-mono">
+                        <LinkIcon className="h-3 w-3 text-emerald-400" /> project:{matter.crossReferences.ensembleProjectId}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-3 text-xs">
@@ -372,7 +465,7 @@ export function IngestionHub() {
       {/* Modal for Ingesting New Task */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#0a0d18] p-6 space-y-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-white/15 bg-[#0a0d18] p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-bold text-white">Ingest Legal / Regulatory Task</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -401,69 +494,103 @@ export function IngestionHub() {
                     onChange={(e) =>
                       setNewMatter({
                         ...newMatter,
-                        originatingNgo: e.target.value as LegalMatter['originatingNgo'],
+                        originatingNgo: e.target.value as OriginatingNgo,
                       })
                     }
-                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500 capitalize"
                   >
-                    <option value="transportation.beamthinktank.space">transportation</option>
-                    <option value="grounds.beamthinktank.space">grounds</option>
-                    <option value="forge.beamthinktank.space">forge</option>
-                    <option value="orchestra.beamthinktank.space">orchestra</option>
-                    <option value="clients.readyaimgo.biz">clients.readyaimgo.biz</option>
+                    <option value="transportation">transportation</option>
+                    <option value="grounds">grounds</option>
+                    <option value="forge">forge</option>
+                    <option value="orchestra">orchestra</option>
+                    <option value="readyaimgo">readyaimgo</option>
+                    <option value="finance">finance</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Practice Area</label>
+                  <label className="block text-slate-300 font-medium mb-1">Category</label>
                   <select
-                    value={newMatter.practiceArea}
+                    value={newMatter.category}
                     onChange={(e) =>
                       setNewMatter({
                         ...newMatter,
-                        practiceArea: e.target.value as LegalPracticeArea,
+                        category: e.target.value as MatterCategory,
                       })
                     }
-                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500 capitalize"
                   >
-                    {LAW_PRACTICE_AREAS.map((a) => (
-                      <option key={a.slug} value={a.slug}>
-                        {a.label}
-                      </option>
-                    ))}
+                    <option value="regulatory">regulatory</option>
+                    <option value="zoning-realestate">zoning-realestate</option>
+                    <option value="ip-rights">ip-rights</option>
+                    <option value="client-contract">client-contract</option>
+                    <option value="compliance">compliance</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Urgency</label>
+                <label className="block text-slate-300 font-medium mb-1">Priority</label>
                 <select
-                  value={newMatter.urgency}
+                  value={newMatter.priority}
                   onChange={(e) =>
                     setNewMatter({
                       ...newMatter,
-                      urgency: e.target.value as typeof newMatter.urgency,
+                      priority: e.target.value as MatterPriority,
                     })
                   }
-                  className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500 capitalize"
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
+                  <option value="standard">standard</option>
+                  <option value="high">high</option>
+                  <option value="urgent">urgent</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Task Scope & Description</label>
+                <label className="block text-slate-300 font-medium mb-1">Summary</label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   required
                   placeholder="Detail contract clauses, zoning codes, FAA regulations, or dataset consent rules needing legal review..."
-                  value={newMatter.description}
-                  onChange={(e) => setNewMatter({ ...newMatter, description: e.target.value })}
+                  value={newMatter.summary}
+                  onChange={(e) => setNewMatter({ ...newMatter, summary: e.target.value })}
                   className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Source Document URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://storage.googleapis.com/... or text draft link"
+                  value={newMatter.sourceDocumentUrl}
+                  onChange={(e) => setNewMatter({ ...newMatter, sourceDocumentUrl: e.target.value })}
+                  className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Contract ID Reference</label>
+                  <input
+                    type="text"
+                    placeholder="contract-123"
+                    value={newMatter.contractId}
+                    onChange={(e) => setNewMatter({ ...newMatter, contractId: e.target.value })}
+                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Parcel ID Reference</label>
+                  <input
+                    type="text"
+                    placeholder="parcel-mke-800wells"
+                    value={newMatter.propertyParcelId}
+                    onChange={(e) => setNewMatter({ ...newMatter, propertyParcelId: e.target.value })}
+                    className="w-full rounded-md border border-white/10 bg-[#070912] p-2.5 text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
